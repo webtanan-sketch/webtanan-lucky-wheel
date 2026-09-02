@@ -35,18 +35,26 @@
     }
 
     function saveSession(session) {
-        try { window.sessionStorage.setItem(storageKey, JSON.stringify(session)); } catch (e) {}
+        var raw = JSON.stringify(session);
+        try { window.localStorage.setItem(storageKey, raw); return; } catch (e) {}
+        try { window.sessionStorage.setItem(storageKey, raw); } catch (ignore) {}
     }
 
     function loadSession() {
-        try {
-            var raw = window.sessionStorage.getItem(storageKey);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) { return null; }
+        var raw = null;
+        try { raw = window.localStorage.getItem(storageKey); } catch (e) {}
+        if (!raw) {
+            try {
+                raw = window.sessionStorage.getItem(storageKey);
+                if (raw) { window.localStorage.setItem(storageKey, raw); }
+            } catch (ignore) {}
+        }
+        try { return raw ? JSON.parse(raw) : null; } catch (e2) { return null; }
     }
 
     function clearSession() {
-        try { window.sessionStorage.removeItem(storageKey); } catch (e) {}
+        try { window.localStorage.removeItem(storageKey); } catch (e) {}
+        try { window.sessionStorage.removeItem(storageKey); } catch (ignore) {}
     }
 
     function setAttempts(app, value) {
@@ -170,7 +178,6 @@
                     rotation = nextRotation(rotation, result.target_angle !== undefined ? result.target_angle : result.angle);
                     wheel.style.transform = 'rotate(' + rotation + 'deg)';
                     setAttempts(app, result.attempts_remaining);
-
                     var onWheelEnd = function (event) {
                         if (event.target !== wheel || 'transform' !== event.propertyName) { return; }
                         wheel.removeEventListener('transitionend', onWheelEnd);
