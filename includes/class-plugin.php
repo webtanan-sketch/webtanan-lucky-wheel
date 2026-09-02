@@ -53,6 +53,7 @@ class WTLW_Plugin {
 		$this->woocommerce->register_hooks();
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+		add_action( 'init', array( 'WTLW_Database', 'maybe_upgrade_defaults' ), 1 );
 		add_action( 'init', array( $this, 'register_account_endpoint' ) );
 		add_filter( 'query_vars', array( $this, 'register_query_var' ) );
 		add_action( 'woocommerce_account_my-rewards_endpoint', array( $this, 'render_rewards_endpoint' ) );
@@ -88,7 +89,7 @@ class WTLW_Plugin {
 		if ( null !== $logout ) {
 			unset( $items['customer-logout'] );
 		}
-		$items['my-rewards'] = __( 'My Rewards', 'webtanan-lucky-wheel' );
+		$items['my-rewards'] = __( 'جوایز من', 'webtanan-lucky-wheel' );
 		if ( null !== $logout ) {
 			$items['customer-logout'] = $logout;
 		}
@@ -130,6 +131,6 @@ class WTLW_Plugin {
 			return $title;
 		}
 
-		return __( 'My Rewards', 'webtanan-lucky-wheel' );
+		return __( 'جوایز من', 'webtanan-lucky-wheel' );
 	}
 }

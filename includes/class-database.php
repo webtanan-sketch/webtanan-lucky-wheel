@@ -64,7 +64,7 @@ class WTLW_Database {
 			update_option( 'webtanan_lucky_wheel_sections', self::default_sections() );
 		}
 		if ( false === get_option( 'webtanan_lucky_wheel_title', false ) ) {
-			update_option( 'webtanan_lucky_wheel_title', __( 'Spin & Win', 'webtanan-lucky-wheel' ) );
+			update_option( 'webtanan_lucky_wheel_title', __( 'گردونه شانس و جایزه', 'webtanan-lucky-wheel' ) );
 		}
 		if ( false === get_option( 'webtanan_lucky_wheel_active', false ) ) {
 			update_option( 'webtanan_lucky_wheel_active', 1 );
@@ -72,10 +72,66 @@ class WTLW_Database {
 		if ( false === get_option( 'webtanan_lucky_wheel_default_attempts', false ) ) {
 			update_option( 'webtanan_lucky_wheel_default_attempts', 1 );
 		}
+		update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.1.0' );
 
 		// Register the endpoint before flushing so the first request works immediately.
 		add_rewrite_endpoint( 'my-rewards', EP_ROOT | EP_PAGES );
 		flush_rewrite_rules();
+	}
+
+	/** Safely migrate only untouched English defaults from version 1.0.0. */
+	public static function maybe_upgrade_defaults() {
+		$version = (string) get_option( 'webtanan_lucky_wheel_data_version', '1.0.0' );
+		if ( version_compare( $version, '1.1.0', '>=' ) ) {
+			return;
+		}
+
+		$title = get_option( 'webtanan_lucky_wheel_title', '' );
+		if ( in_array( $title, array( 'Spin & Win', 'Spin &amp; Win' ), true ) ) {
+			update_option( 'webtanan_lucky_wheel_title', __( 'گردونه شانس و جایزه', 'webtanan-lucky-wheel' ) );
+		}
+
+		$sections = get_option( 'webtanan_lucky_wheel_sections', array() );
+		if ( is_array( $sections ) ) {
+			$name_map = array(
+				'600,000 Toman purchase credit' => '۶۰۰ هزار تومان اعتبار خرید',
+				'300,000 Toman purchase credit' => '۳۰۰ هزار تومان اعتبار خرید',
+				'No prize'                       => 'این بار جایزه‌ای نیست',
+				'2 extra attempts'                => '۲ شانس اضافه',
+				'1 extra attempt'                 => '۱ شانس اضافه',
+				'500,000 Toman purchase credit' => '۵۰۰ هزار تومان اعتبار خرید',
+				'Special reward'                  => 'هدیه ویژه',
+			);
+			$icon_map = array(
+				'reward-600' => '🎁',
+				'reward-300' => '✨',
+				'nothing'    => '☘',
+				'extra-2'    => '↻',
+				'extra-1'    => '+',
+				'reward-500' => '🛍',
+				'custom'     => '★',
+			);
+			$changed = false;
+			foreach ( $sections as $index => $section ) {
+				if ( ! is_array( $section ) ) {
+					continue;
+				}
+				if ( isset( $section['name'], $name_map[ $section['name'] ] ) ) {
+					$sections[ $index ]['name'] = $name_map[ $section['name'] ];
+					$changed = true;
+				}
+				$id = isset( $section['id'] ) ? $section['id'] : '';
+				if ( isset( $icon_map[ $id ] ) && isset( $section['icon'] ) && in_array( $section['icon'], array( 'D', 'G', '?', '↻', '+', 'W', '★' ), true ) ) {
+					$sections[ $index ]['icon'] = $icon_map[ $id ];
+					$changed = true;
+				}
+			}
+			if ( $changed ) {
+				update_option( 'webtanan_lucky_wheel_sections', $sections );
+			}
+		}
+
+		update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.1.0' );
 	}
 
 	/** Flush endpoint rules on deactivation without removing user data. */
@@ -83,99 +139,99 @@ class WTLW_Database {
 		flush_rewrite_rules();
 	}
 
-	/** Default seven-segment campaign. */
+	/** Default seven-segment Persian campaign. */
 	public static function default_sections() {
 		return array(
 			array(
-				'id'               => 'reward-600',
-				'name'             => __( '600,000 Toman purchase credit', 'webtanan-lucky-wheel' ),
-				'type'             => 'coupon',
-				'value'            => 600000,
-				'probability'      => 10,
-				'color'            => '#7c3aed',
-				'icon'             => 'D',
-				'active'            => 1,
-				'extra_attempts'   => 0,
-				'expiry_days'      => 30,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'reward-600',
+				'name'           => __( '۶۰۰ هزار تومان اعتبار خرید', 'webtanan-lucky-wheel' ),
+				'type'           => 'coupon',
+				'value'          => 600000,
+				'probability'    => 10,
+				'color'          => '#0f766e',
+				'icon'           => '🎁',
+				'active'         => 1,
+				'extra_attempts' => 0,
+				'expiry_days'    => 30,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'reward-300',
-				'name'             => __( '300,000 Toman purchase credit', 'webtanan-lucky-wheel' ),
-				'type'             => 'coupon',
-				'value'            => 300000,
-				'probability'      => 15,
-				'color'            => '#9333ea',
-				'icon'             => 'G',
-				'active'            => 1,
-				'extra_attempts'   => 0,
-				'expiry_days'      => 30,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'reward-300',
+				'name'           => __( '۳۰۰ هزار تومان اعتبار خرید', 'webtanan-lucky-wheel' ),
+				'type'           => 'coupon',
+				'value'          => 300000,
+				'probability'    => 15,
+				'color'          => '#0b4f6c',
+				'icon'           => '✨',
+				'active'         => 1,
+				'extra_attempts' => 0,
+				'expiry_days'    => 30,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'nothing',
-				'name'             => __( 'No prize', 'webtanan-lucky-wheel' ),
-				'type'             => 'nothing',
-				'value'            => 0,
-				'probability'      => 35,
-				'color'            => '#312e81',
-				'icon'             => '?',
-				'active'            => 1,
-				'extra_attempts'   => 0,
-				'expiry_days'      => 0,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'nothing',
+				'name'           => __( 'این بار جایزه‌ای نیست', 'webtanan-lucky-wheel' ),
+				'type'           => 'nothing',
+				'value'          => 0,
+				'probability'    => 35,
+				'color'          => '#7a3e2d',
+				'icon'           => '☘',
+				'active'         => 1,
+				'extra_attempts' => 0,
+				'expiry_days'    => 0,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'extra-2',
-				'name'             => __( '2 extra attempts', 'webtanan-lucky-wheel' ),
-				'type'             => 'extra_attempts',
-				'value'            => 2,
-				'probability'      => 12,
-				'color'            => '#a855f7',
-				'icon'             => '↻',
-				'active'            => 1,
-				'extra_attempts'   => 2,
-				'expiry_days'      => 0,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'extra-2',
+				'name'           => __( '۲ شانس اضافه', 'webtanan-lucky-wheel' ),
+				'type'           => 'extra_attempts',
+				'value'          => 2,
+				'probability'    => 12,
+				'color'          => '#2a9d8f',
+				'icon'           => '↻',
+				'active'         => 1,
+				'extra_attempts' => 2,
+				'expiry_days'    => 0,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'extra-1',
-				'name'             => __( '1 extra attempt', 'webtanan-lucky-wheel' ),
-				'type'             => 'extra_attempts',
-				'value'            => 1,
-				'probability'      => 13,
-				'color'            => '#c084fc',
-				'icon'             => '+',
-				'active'            => 1,
-				'extra_attempts'   => 1,
-				'expiry_days'      => 0,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'extra-1',
+				'name'           => __( '۱ شانس اضافه', 'webtanan-lucky-wheel' ),
+				'type'           => 'extra_attempts',
+				'value'          => 1,
+				'probability'    => 13,
+				'color'          => '#e9c46a',
+				'icon'           => '+',
+				'active'         => 1,
+				'extra_attempts' => 1,
+				'expiry_days'    => 0,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'reward-500',
-				'name'             => __( '500,000 Toman purchase credit', 'webtanan-lucky-wheel' ),
-				'type'             => 'coupon',
-				'value'            => 500000,
-				'probability'      => 10,
-				'color'            => '#f59e0b',
-				'icon'             => 'W',
-				'active'            => 1,
-				'extra_attempts'   => 0,
-				'expiry_days'      => 30,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'reward-500',
+				'name'           => __( '۵۰۰ هزار تومان اعتبار خرید', 'webtanan-lucky-wheel' ),
+				'type'           => 'coupon',
+				'value'          => 500000,
+				'probability'    => 10,
+				'color'          => '#c58b2a',
+				'icon'           => '🛍',
+				'active'         => 1,
+				'extra_attempts' => 0,
+				'expiry_days'    => 30,
+				'discount_type'  => 'fixed_cart',
 			),
 			array(
-				'id'               => 'custom',
-				'name'             => __( 'Special reward', 'webtanan-lucky-wheel' ),
-				'type'             => 'wallet',
-				'value'            => 100000,
-				'probability'      => 5,
-				'color'            => '#fbbf24',
-				'icon'             => '★',
-				'active'            => 1,
-				'extra_attempts'   => 0,
-				'expiry_days'      => 0,
-				'discount_type'    => 'fixed_cart',
+				'id'             => 'custom',
+				'name'           => __( 'هدیه ویژه', 'webtanan-lucky-wheel' ),
+				'type'           => 'wallet',
+				'value'          => 100000,
+				'probability'    => 5,
+				'color'          => '#b83244',
+				'icon'           => '★',
+				'active'         => 1,
+				'extra_attempts' => 0,
+				'expiry_days'    => 0,
+				'discount_type'  => 'fixed_cart',
 			),
 		);
 	}
@@ -222,10 +278,10 @@ class WTLW_Database {
 		global $wpdb;
 		$table = self::logs_table();
 		return array(
-			'spins'    => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ),
-			'users'    => (int) $wpdb->get_var( "SELECT COUNT(DISTINCT user_id) FROM {$table}" ),
-			'rewards'  => (float) $wpdb->get_var( "SELECT COALESCE(SUM(reward_value), 0) FROM {$table} WHERE status = 'completed'" ),
-			'today'    => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s", gmdate( 'Y-m-d 00:00:00' ) ) ),
+			'spins'   => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ),
+			'users'   => (int) $wpdb->get_var( "SELECT COUNT(DISTINCT user_id) FROM {$table}" ),
+			'rewards' => (float) $wpdb->get_var( "SELECT COALESCE(SUM(reward_value), 0) FROM {$table} WHERE status = 'completed'" ),
+			'today'   => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s", gmdate( 'Y-m-d 00:00:00' ) ) ),
 		);
 	}
 

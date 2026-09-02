@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Webtanan Lucky Wheel
- * Plugin URI: https://github.com/webtanan/webtanan-lucky-wheel
- * Description: A secure, server-side lucky wheel for registration campaigns, WooCommerce coupons and wallet credits.
- * Version: 1.0.0
+ * Plugin Name: گردونه شانس وب‌تنان
+ * Plugin URI: https://github.com/webtanan-sketch/webtanan-lucky-wheel
+ * Description: افزونه فارسی و امن گردونه شانس برای کمپین‌های ثبت‌نام، کد تخفیف ووکامرس، اعتبار کیف پول و باشگاه مشتریان.
+ * Version: 1.2.0
  * Author: Webtanan
  * Author URI: https://webtanan.ir
  * Text Domain: webtanan-lucky-wheel
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WTLW_VERSION', '1.0.0' );
+define( 'WTLW_VERSION', '1.2.0' );
 define( 'WTLW_FILE', __FILE__ );
 define( 'WTLW_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WTLW_URL', plugin_dir_url( __FILE__ ) );

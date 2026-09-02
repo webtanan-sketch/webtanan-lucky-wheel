@@ -18,10 +18,10 @@ class WTLW_Rewards {
 
 	/** Apply a selected section to the user and return public result data. */
 	public function apply( array $section, $user_id ) {
-		$type          = isset( $section['type'] ) ? sanitize_key( $section['type'] ) : 'nothing';
-		$value         = isset( $section['value'] ) ? (float) $section['value'] : 0;
-		$coupon_code   = '';
-		$status        = 'completed';
+		$type           = isset( $section['type'] ) ? sanitize_key( $section['type'] ) : 'nothing';
+		$value          = isset( $section['value'] ) ? (float) $section['value'] : 0;
+		$coupon_code    = '';
+		$status         = 'completed';
 		$extra_attempts = isset( $section['extra_attempts'] ) ? (int) $section['extra_attempts'] : 0;
 
 		if ( 'extra_attempts' === $type || $extra_attempts > 0 ) {
@@ -40,10 +40,10 @@ class WTLW_Rewards {
 					$status = 'failed';
 				}
 			} else {
-				$this->wallet->credit( $user_id, $value, sprintf( __( 'Lucky Wheel: %s', 'webtanan-lucky-wheel' ), $section['name'] ) );
+				$this->wallet->credit( $user_id, $value, sprintf( __( 'جایزه گردونه شانس: %s', 'webtanan-lucky-wheel' ), $section['name'] ) );
 			}
 		} elseif ( 'wallet' === $type && $value > 0 ) {
-			$this->wallet->credit( $user_id, $value, sprintf( __( 'Lucky Wheel: %s', 'webtanan-lucky-wheel' ), $section['name'] ) );
+			$this->wallet->credit( $user_id, $value, sprintf( __( 'جایزه گردونه شانس: %s', 'webtanan-lucky-wheel' ), $section['name'] ) );
 		}
 
 		return array(

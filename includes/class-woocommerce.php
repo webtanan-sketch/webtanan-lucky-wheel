@@ -22,11 +22,11 @@ class WTLW_WooCommerce {
 			return '';
 		}
 
-		$code = 'WTLW-' . strtoupper( wp_generate_password( 10, false, false ) );
+		$code    = 'WTLW-' . strtoupper( wp_generate_password( 10, false, false ) );
 		$post_id = wp_insert_post(
 			array(
 				'post_title'   => $code,
-				'post_content' => __( 'Webtanan Lucky Wheel reward', 'webtanan-lucky-wheel' ),
+				'post_content' => __( 'جایزه گردونه شانس وب‌تنان', 'webtanan-lucky-wheel' ),
 				'post_status'  => 'publish',
 				'post_author'  => (int) $user_id,
 				'post_type'    => 'shop_coupon',

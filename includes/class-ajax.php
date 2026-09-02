@@ -21,12 +21,12 @@ class WTLW_Ajax {
 	public function spin() {
 		check_ajax_referer( 'wtlw_frontend', 'nonce' );
 		if ( ! is_user_logged_in() ) {
-			wp_send_json_error( array( 'message' => __( 'Please register or log in before spinning.', 'webtanan-lucky-wheel' ) ), 401 );
+			wp_send_json_error( array( 'message' => __( 'برای چرخاندن گردونه ابتدا ثبت‌نام یا وارد حساب خود شوید.', 'webtanan-lucky-wheel' ) ), 401 );
 		}
 
 		$ip = $this->request_ip();
 		if ( ! $this->allow_ip( $ip ) ) {
-			wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again shortly.', 'webtanan-lucky-wheel' ) ), 429 );
+			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) ), 429 );
 		}
 
 		$request_id = isset( $_POST['request_id'] ) ? sanitize_text_field( wp_unslash( $_POST['request_id'] ) ) : '';
@@ -42,27 +42,28 @@ class WTLW_Ajax {
 	public function register() {
 		check_ajax_referer( 'wtlw_frontend', 'nonce' );
 		if ( is_user_logged_in() ) {
-			wp_send_json_success( array( 'message' => __( 'You are already logged in.', 'webtanan-lucky-wheel' ) ) );
+			wp_send_json_success( array( 'message' => __( 'شما از قبل وارد حساب کاربری شده‌اید.', 'webtanan-lucky-wheel' ) ) );
 		}
 
 		$ip = $this->request_ip();
 		if ( ! $this->allow_ip( $ip ) ) {
-			wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again shortly.', 'webtanan-lucky-wheel' ) ), 429 );
+			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) ), 429 );
 		}
 
-		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-		$phone    = isset( $_POST['phone'] ) ? preg_replace( '/[^0-9+]/', '', wp_unslash( $_POST['phone'] ) ) : '';
-		$email    = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
-		$password = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
+		$name      = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		$phone_raw = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+		$phone     = preg_replace( '/[^0-9+]/', '', $this->normalize_digits( $phone_raw ) );
+		$email     = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$password  = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
 
 		if ( ! $name || ! $phone || ! is_email( $email ) || strlen( $password ) < 8 ) {
-			wp_send_json_error( array( 'message' => __( 'Name, phone, a valid email and a password of at least 8 characters are required.', 'webtanan-lucky-wheel' ) ), 422 );
+			wp_send_json_error( array( 'message' => __( 'نام، شماره موبایل، ایمیل معتبر و رمز عبور حداقل ۸ کاراکتری الزامی است.', 'webtanan-lucky-wheel' ) ), 422 );
 		}
 		if ( email_exists( $email ) ) {
-			wp_send_json_error( array( 'message' => __( 'This email is already registered.', 'webtanan-lucky-wheel' ) ), 409 );
+			wp_send_json_error( array( 'message' => __( 'این ایمیل قبلاً ثبت شده است.', 'webtanan-lucky-wheel' ) ), 409 );
 		}
 		if ( $this->phone_exists( $phone ) ) {
-			wp_send_json_error( array( 'message' => __( 'This phone number is already registered.', 'webtanan-lucky-wheel' ) ), 409 );
+			wp_send_json_error( array( 'message' => __( 'این شماره موبایل قبلاً ثبت شده است.', 'webtanan-lucky-wheel' ) ), 409 );
 		}
 
 		$username = sanitize_user( current( explode( '@', $email ) ), true );
@@ -89,7 +90,20 @@ class WTLW_Ajax {
 			array(
 				'user_id'            => (int) $user_id,
 				'attempts_remaining' => $attempts['remaining_attempts'],
-				'message'            => __( 'Registration completed successfully.', 'webtanan-lucky-wheel' ),
+				'message'            => __( 'ثبت‌نام با موفقیت انجام شد. شانس شما آماده است.', 'webtanan-lucky-wheel' ),
+			)
+		);
+	}
+
+	/** Normalize Persian and Arabic numerals before phone validation. */
+	private function normalize_digits( $value ) {
+		return strtr(
+			(string) $value,
+			array(
+				'۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+				'۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+				'٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+				'٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
 			)
 		);
 	}
