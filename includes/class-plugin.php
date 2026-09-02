@@ -40,6 +40,7 @@ class WTLW_Plugin {
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( 'WTLW_Database', 'maybe_upgrade_defaults' ), 1 );
+		add_action( 'init', array( $this, 'ensure_daily_reset_schedule' ), 1 );
 		add_action( 'init', array( 'WTLW_Database', 'maybe_daily_reset_attempts' ), 2 );
 		add_action( 'wtlw_daily_reset_attempts', array( 'WTLW_Database', 'maybe_daily_reset_attempts' ) );
 		add_action( 'init', array( $this, 'register_account_endpoint' ) );
@@ -52,6 +53,16 @@ class WTLW_Plugin {
 
 	public function load_textdomain() {
 		load_plugin_textdomain( 'webtanan-lucky-wheel', false, dirname( plugin_basename( WTLW_FILE ) ) . '/languages' );
+	}
+
+	/** Make sure upgrades get the daily reset cron even without plugin reactivation. */
+	public function ensure_daily_reset_schedule() {
+		if ( wp_next_scheduled( 'wtlw_daily_reset_attempts' ) ) {
+			return;
+		}
+		$now  = new DateTimeImmutable( 'now', wp_timezone() );
+		$next = $now->modify( 'tomorrow' )->setTime( 0, 5 );
+		wp_schedule_event( $next->getTimestamp(), 'daily', 'wtlw_daily_reset_attempts' );
 	}
 
 	public function register_account_endpoint() {
