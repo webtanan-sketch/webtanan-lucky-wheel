@@ -1,0 +1,39 @@
+/* v1.5.0 — responsiveness and wheel hub logo. */
+.wtlw-theme-scope .wtlw-wheel {
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+.wtlw-theme-scope .wtlw-wheel-labels span,
+.wtlw-theme-scope .wtlw-wheel-labels b {
+    backface-visibility: hidden;
+}
+
+.wtlw-theme-scope .wtlw-button {
+    touch-action: manipulation;
+}
+
+.wtlw-theme-scope .wtlw-attempt-count {
+    min-width: 30px;
+    font-variant-numeric: tabular-nums;
+}
+
+.wtlw-theme-scope .wtlw-wheel-hub.wtlw-wheel-hub-logo {
+    overflow: hidden;
+    padding: 3px;
+}
+
+.wtlw-theme-scope .wtlw-wheel-hub .wtlw-hub-logo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.wtlw-theme-scope .wtlw-game.is-preparing .wtlw-spin-button {
+    opacity: .6;
+    pointer-events: none;
+}
