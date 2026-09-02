@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class WTLW_Plugin {
 	private static $instance = null;
+
 	public $engine;
 	public $rewards;
 	public $wallet;
@@ -19,6 +20,7 @@ class WTLW_Plugin {
 	public $ajax;
 	public $admin;
 	public $shortcode;
+	public $interface_settings;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -28,15 +30,35 @@ class WTLW_Plugin {
 	}
 
 	private function __construct() {
+		// Core services are lightweight and shared by front-end, AJAX, cron and admin contexts.
 		$this->wallet      = new WTLW_Wallet();
 		$this->woocommerce = new WTLW_WooCommerce();
 		$this->sms         = new WTLW_SMS();
 		$this->rewards     = new WTLW_Rewards( $this->wallet, $this->woocommerce, $this->sms );
 		$this->engine      = new WTLW_Wheel_Engine( $this->rewards );
-		$this->ajax        = new WTLW_Ajax( $this->engine );
-		$this->admin       = new WTLW_Admin( $this->engine );
-		$this->shortcode   = new WTLW_Shortcode( $this->engine );
+
+		// Context-aware boot: do not construct admin or front-end controllers when they are not needed.
+		if ( wp_doing_ajax() && class_exists( 'WTLW_Ajax' ) ) {
+			$this->ajax = new WTLW_Ajax( $this->engine );
+		} elseif ( is_admin() ) {
+			if ( class_exists( 'WTLW_Admin' ) ) {
+				$this->admin = new WTLW_Admin( $this->engine );
+			}
+			if ( class_exists( 'WTLW_Appearance' ) ) {
+				new WTLW_Appearance();
+			}
+			if ( class_exists( 'WTLW_UX_Settings' ) ) {
+				$this->interface_settings = new WTLW_UX_Settings();
+			}
+		} elseif ( ! wp_doing_cron() && class_exists( 'WTLW_Shortcode' ) ) {
+			$this->shortcode = new WTLW_Shortcode( $this->engine );
+		}
+
 		$this->woocommerce->register_hooks();
+
+		// SMS delivery is queued outside the spin request so external API latency never blocks the wheel.
+		add_action( 'wtlw_send_user_coupon_sms', array( $this->sms, 'send_user_coupon' ), 10, 4 );
+		add_action( 'wtlw_send_participant_coupon_sms', array( $this->sms, 'send_participant_coupon' ), 10, 4 );
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( 'WTLW_Database', 'maybe_upgrade_defaults' ), 1 );
@@ -60,6 +82,7 @@ class WTLW_Plugin {
 		if ( wp_next_scheduled( 'wtlw_daily_reset_attempts' ) ) {
 			return;
 		}
+
 		$now  = new DateTimeImmutable( 'now', wp_timezone() );
 		$next = $now->modify( 'tomorrow' )->setTime( 0, 5 );
 		wp_schedule_event( $next->getTimestamp(), 'daily', 'wtlw_daily_reset_attempts' );
@@ -94,12 +117,15 @@ class WTLW_Plugin {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
+
 		$user_id      = get_current_user_id();
 		$balance      = $this->wallet->get_balance( $user_id );
 		$transactions = $this->wallet->get_transactions( $user_id );
 		$coupons      = WTLW_Database::get_user_coupons( $user_id );
+
 		wp_enqueue_style( 'wtlw-public', WTLW_URL . 'public/css/style.css', array(), WTLW_VERSION );
 		wp_enqueue_style( 'wtlw-theme', WTLW_URL . 'public/css/theme-overrides.css', array( 'wtlw-public' ), WTLW_VERSION );
+		wp_enqueue_style( 'wtlw-ux-v15', WTLW_URL . 'public/css/ux-v15.css', array( 'wtlw-theme' ), WTLW_VERSION );
 		include WTLW_DIR . 'public/templates/rewards-account.php';
 	}
 
@@ -108,6 +134,7 @@ class WTLW_Plugin {
 		if ( $this->woocommerce->is_available() || is_admin() || null === $endpoint || false === $endpoint ) {
 			return $content;
 		}
+
 		ob_start();
 		$this->render_rewards_content();
 		return $content . ob_get_clean();
