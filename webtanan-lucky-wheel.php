@@ -2,8 +2,8 @@
 /**
  * Plugin Name: گردونه شانس وب‌تنان
  * Plugin URI: https://github.com/webtanan-sketch/webtanan-lucky-wheel
- * Description: افزونه فارسی گردونه شانس با ورود سریع، کاربران لاگین‌شده، پاپ‌آپ هوشمند، ووکامرس، پیامک IPPanel و رنگ‌بندی قابل تنظیم.
- * Version: 1.4.0
+ * Description: افزونه فارسی گردونه شانس با ورود سریع، پاپ‌آپ هوشمند، ووکامرس، پیامک IPPanel، رابط واکنش‌گرا و تنظیمات حرفه‌ای.
+ * Version: 1.5.0
  * Author: وب تنان
  * Author URI: https://webtanan.com/
  * Text Domain: webtanan-lucky-wheel
@@ -17,22 +17,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WTLW_VERSION', '1.4.0' );
+define( 'WTLW_VERSION', '1.5.0' );
 define( 'WTLW_FILE', __FILE__ );
 define( 'WTLW_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WTLW_URL', plugin_dir_url( __FILE__ ) );
 
+// Core domain services.
 require_once WTLW_DIR . 'includes/class-database.php';
 require_once WTLW_DIR . 'includes/class-wallet.php';
 require_once WTLW_DIR . 'includes/class-woocommerce.php';
 require_once WTLW_DIR . 'includes/class-sms.php';
 require_once WTLW_DIR . 'includes/class-rewards.php';
 require_once WTLW_DIR . 'includes/class-wheel-engine.php';
-require_once WTLW_DIR . 'includes/class-ajax.php';
-require_once WTLW_DIR . 'includes/class-admin.php';
+
+// Lightweight option providers used by both front-end and admin.
 require_once WTLW_DIR . 'includes/class-appearance.php';
-require_once WTLW_DIR . 'includes/class-guest-admin.php';
-require_once WTLW_DIR . 'includes/class-shortcode.php';
+require_once WTLW_DIR . 'includes/class-ux-settings.php';
+
+// Load request-specific controllers only when WordPress actually needs them.
+if ( wp_doing_ajax() ) {
+	require_once WTLW_DIR . 'includes/class-ajax.php';
+} elseif ( is_admin() ) {
+	require_once WTLW_DIR . 'includes/class-admin.php';
+	require_once WTLW_DIR . 'includes/class-guest-admin.php';
+} elseif ( ! wp_doing_cron() ) {
+	require_once WTLW_DIR . 'includes/class-shortcode.php';
+}
+
 require_once WTLW_DIR . 'includes/class-plugin.php';
 
 register_activation_hook( WTLW_FILE, array( 'WTLW_Database', 'activate' ) );
