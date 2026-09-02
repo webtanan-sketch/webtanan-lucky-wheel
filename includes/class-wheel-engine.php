@@ -57,30 +57,70 @@ class WTLW_Wheel_Engine {
 		return $this->ensure_user_attempts( $user_id );
 	}
 
+	public function spin_user( $user_id, $ip_address, $request_id ) {
+		$user_id = (int) $user_id;
+		if ( $user_id < 1 ) {
+			return new WP_Error( 'invalid_user', __( 'حساب کاربری معتبر نیست.', 'webtanan-lucky-wheel' ) );
+		}
+		$lock_key = 'wtlw_user_spin_lock_' . $user_id;
+		if ( ! $this->acquire_lock( $lock_key ) ) {
+			return new WP_Error( 'too_fast', __( 'چند لحظه صبر کنید و دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) );
+		}
+		try {
+			$request_key = 'wtlw_user_request_' . $user_id . '_' . md5( $request_id );
+			if ( ! $request_id || get_transient( $request_key ) ) {
+				return new WP_Error( 'replay', __( 'این درخواست قبلاً پردازش شده است.', 'webtanan-lucky-wheel' ) );
+			}
+			set_transient( $request_key, 1, DAY_IN_SECONDS );
+			$attempts = $this->get_attempts( $user_id );
+			$before = (int) $attempts['remaining_attempts'];
+			if ( $before < 1 ) {
+				return new WP_Error( 'no_attempts', __( 'شانس دیگری برای شما باقی نمانده است.', 'webtanan-lucky-wheel' ) );
+			}
+			$sections = $this->get_sections();
+			if ( empty( $sections ) ) {
+				return new WP_Error( 'no_rewards', __( 'گردونه در حال حاضر در دسترس نیست.', 'webtanan-lucky-wheel' ) );
+			}
+			$selected = $this->weighted_pick( $sections );
+			update_user_meta( $user_id, 'remaining_attempts', max( 0, $before - 1 ) );
+			$reward = $this->rewards->apply( $selected, $user_id );
+			$after = (int) get_user_meta( $user_id, 'remaining_attempts', true );
+			$log_id = WTLW_Database::insert_log(
+				array(
+					'user_id' => $user_id,
+					'participant_id' => 0,
+					'ip_address' => sanitize_text_field( $ip_address ),
+					'reward_id' => $selected['id'],
+					'reward_name' => $selected['name'],
+					'reward_value' => $selected['value'],
+					'coupon_code' => $reward['coupon_code'],
+					'attempts_before' => $before,
+					'attempts_after' => $after,
+					'status' => $reward['status'],
+				)
+			);
+			return $this->result_payload( $log_id, $selected, $reward, $sections, $after, 0 );
+		} finally {
+			delete_option( $lock_key );
+		}
+	}
+
 	public function spin_guest( $participant_id, $participant_token, $ip_address, $request_id ) {
 		$participant_id = (int) $participant_id;
 		$participant = WTLW_Database::authenticate_participant( $participant_id, $participant_token );
 		if ( ! $participant ) {
 			return new WP_Error( 'invalid_participant', __( 'نشست قرعه‌کشی معتبر نیست. نام و شماره موبایل را دوباره وارد کنید.', 'webtanan-lucky-wheel' ) );
 		}
-
 		$lock_key = 'wtlw_guest_spin_lock_' . $participant_id;
-		$locked = add_option( $lock_key, time(), '', 'no' );
-		if ( ! $locked && ( time() - (int) get_option( $lock_key, time() ) ) > 15 ) {
-			delete_option( $lock_key );
-			$locked = add_option( $lock_key, time(), '', 'no' );
-		}
-		if ( ! $locked ) {
+		if ( ! $this->acquire_lock( $lock_key ) ) {
 			return new WP_Error( 'too_fast', __( 'چند لحظه صبر کنید و دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) );
 		}
-
 		try {
 			$request_key = 'wtlw_guest_request_' . $participant_id . '_' . md5( $request_id );
 			if ( ! $request_id || get_transient( $request_key ) ) {
 				return new WP_Error( 'replay', __( 'این درخواست قبلاً پردازش شده است.', 'webtanan-lucky-wheel' ) );
 			}
 			set_transient( $request_key, 1, DAY_IN_SECONDS );
-
 			$participant = WTLW_Database::get_participant( $participant_id );
 			$before = $participant ? (int) $participant->remaining_attempts : 0;
 			if ( $before < 1 ) {
@@ -90,13 +130,11 @@ class WTLW_Wheel_Engine {
 			if ( empty( $sections ) ) {
 				return new WP_Error( 'no_rewards', __( 'گردونه در حال حاضر در دسترس نیست.', 'webtanan-lucky-wheel' ) );
 			}
-
 			$selected = $this->weighted_pick( $sections );
 			WTLW_Database::set_participant_attempts( $participant_id, $before - 1 );
 			$reward = $this->rewards->apply_guest( $selected, $participant_id );
 			$participant_after = WTLW_Database::get_participant( $participant_id );
 			$after = $participant_after ? (int) $participant_after->remaining_attempts : max( 0, $before - 1 );
-
 			$log_id = WTLW_Database::insert_log(
 				array(
 					'user_id' => 0,
@@ -111,28 +149,40 @@ class WTLW_Wheel_Engine {
 					'status' => $reward['status'],
 				)
 			);
-
-			$index = array_search( $selected['id'], array_column( $sections, 'id' ), true );
-			$segment_angle = 360 / count( $sections );
-			$segment_center = ( (int) $index * $segment_angle ) + ( $segment_angle / 2 );
-			$target_angle = fmod( 360 - $segment_center + 360, 360 );
-			$legacy_angle = $target_angle + ( 360 * 5 );
-
-			return array(
-				'log_id' => $log_id,
-				'reward_id' => $selected['id'],
-				'reward_name' => $selected['name'],
-				'reward_type' => $selected['type'],
-				'reward_value' => $selected['value'],
-				'coupon_code' => $reward['coupon_code'],
-				'angle' => round( $legacy_angle, 4 ),
-				'target_angle' => round( $target_angle, 4 ),
-				'attempts_remaining' => $after,
-				'credit_balance' => $participant_after ? (float) $participant_after->credit_balance : 0,
-			);
+			$credit = $participant_after ? (float) $participant_after->credit_balance : 0;
+			return $this->result_payload( $log_id, $selected, $reward, $sections, $after, $credit );
 		} finally {
 			delete_option( $lock_key );
 		}
+	}
+
+	private function result_payload( $log_id, $selected, $reward, $sections, $after, $credit_balance ) {
+		$index = array_search( $selected['id'], array_column( $sections, 'id' ), true );
+		$segment_angle = 360 / count( $sections );
+		$segment_center = ( (int) $index * $segment_angle ) + ( $segment_angle / 2 );
+		$target_angle = fmod( 360 - $segment_center + 360, 360 );
+		return array(
+			'log_id' => (int) $log_id,
+			'reward_id' => $selected['id'],
+			'reward_name' => $selected['name'],
+			'reward_type' => $selected['type'],
+			'reward_value' => $selected['value'],
+			'coupon_code' => $reward['coupon_code'],
+			'sms_sent' => ! empty( $reward['sms_sent'] ),
+			'angle' => round( $target_angle + ( 360 * 5 ), 4 ),
+			'target_angle' => round( $target_angle, 4 ),
+			'attempts_remaining' => (int) $after,
+			'credit_balance' => (float) $credit_balance,
+		);
+	}
+
+	private function acquire_lock( $lock_key ) {
+		$locked = add_option( $lock_key, time(), '', 'no' );
+		if ( ! $locked && ( time() - (int) get_option( $lock_key, time() ) ) > 15 ) {
+			delete_option( $lock_key );
+			$locked = add_option( $lock_key, time(), '', 'no' );
+		}
+		return (bool) $locked;
 	}
 
 	private function weighted_pick( array $sections ) {
