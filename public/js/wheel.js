@@ -49,6 +49,17 @@
         try { window.sessionStorage.removeItem(storageKey); } catch (e) {}
     }
 
+    function setAttempts(app, value) {
+        var remaining = Math.max(0, Number(value || 0));
+        var game = app.querySelector('.wtlw-game');
+        var count = game ? game.querySelector('.wtlw-attempt-count') : null;
+        var button = game ? game.querySelector('.wtlw-spin-button') : null;
+        app.setAttribute('data-has-attempts', remaining > 0 ? '1' : '0');
+        if (count) { count.textContent = remaining; }
+        if (button) { button.disabled = remaining < 1; }
+        return remaining;
+    }
+
     function showModal(app, result) {
         var modal = app.querySelector('.wtlw-modal');
         var name = app.querySelector('.wtlw-result-name');
@@ -62,7 +73,7 @@
         } else if ('extra_attempts' === type) {
             code.innerHTML = '<span>' + label('extraAdded', 'شانس اضافه برای شما ثبت شد.') + '</span>';
         } else {
-            code.innerHTML = '<span>' + label('walletAdded', 'اعتبار جایزه برای شماره موبایل شما ثبت شد.') + '</span>';
+            code.innerHTML = '<span>' + label('walletAdded', 'اعتبار جایزه برای شما ثبت شد.') + '</span>';
         }
         var confetti = app.querySelector('.wtlw-confetti');
         confetti.innerHTML = '';
@@ -83,101 +94,133 @@
         if (!modal) { return; }
         modal.classList.remove('is-visible');
         modal.setAttribute('aria-hidden', 'true');
+        if ('0' === app.getAttribute('data-has-attempts')) {
+            var shell = app.closest('.wtlw-popup-shell');
+            if (shell) {
+                closePopup(shell);
+                shell.hidden = true;
+            }
+        }
     }
 
     function activateGame(app, session, status) {
         var form = app.querySelector('.wtlw-entry-form');
         var game = app.querySelector('.wtlw-game');
-        form.classList.add('wtlw-is-hidden');
-        game.classList.remove('wtlw-is-hidden');
-        game.querySelector('.wtlw-attempt-count').textContent = status.attempts_remaining;
-        game.querySelector('.wtlw-participant-name').textContent = status.name || '';
-        game.querySelector('.wtlw-spin-button').disabled = Number(status.attempts_remaining) < 1;
+        if (form) { form.classList.add('wtlw-is-hidden'); }
+        if (game) { game.classList.remove('wtlw-is-hidden'); }
+        var name = game ? game.querySelector('.wtlw-participant-name') : null;
+        if (name) { name.textContent = status.name || ''; }
+        setAttempts(app, status.attempts_remaining);
         app.__wtlwSession = session;
     }
 
     function initApp(app) {
+        var isMember = '1' === app.getAttribute('data-member');
         var registerForm = app.querySelector('.wtlw-entry-form');
         var game = app.querySelector('.wtlw-game');
-        var spinButton = game.querySelector('.wtlw-spin-button');
-        var wheel = game.querySelector('.wtlw-wheel');
-        var count = game.querySelector('.wtlw-attempt-count');
-        var message = game.querySelector('.wtlw-spin-message');
+        var spinButton = game ? game.querySelector('.wtlw-spin-button') : null;
+        var wheel = game ? game.querySelector('.wtlw-wheel') : null;
+        var message = game ? game.querySelector('.wtlw-spin-message') : null;
         var rotation = 0;
 
-        registerForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            var formMessage = registerForm.querySelector('.wtlw-form-message');
-            var button = registerForm.querySelector('button[type="submit"]');
-            button.disabled = true;
-            formMessage.classList.remove('is-error');
-            formMessage.textContent = label('entering', 'در حال ثبت اطلاعات...');
-            var fields = {};
-            new FormData(registerForm).forEach(function (value, key) { fields[key] = value; });
-            post('wtlw_register', fields).then(function (payload) {
-                if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('entryFailed', 'ثبت اطلاعات انجام نشد.')); }
-                var session = { participant_id: payload.data.participant_id, participant_token: payload.data.participant_token };
-                saveSession(session);
-                formMessage.textContent = payload.data.message || '';
-                activateGame(app, session, payload.data);
-            }).catch(function (error) {
-                formMessage.textContent = error.message;
-                formMessage.classList.add('is-error');
-                button.disabled = false;
+        if (isMember) {
+            app.__wtlwSession = { member: 1 };
+            setAttempts(app, app.getAttribute('data-initial-remaining'));
+        } else if (registerForm) {
+            registerForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var formMessage = registerForm.querySelector('.wtlw-form-message');
+                var button = registerForm.querySelector('button[type="submit"]');
+                button.disabled = true;
+                formMessage.classList.remove('is-error');
+                formMessage.textContent = label('entering', 'در حال ثبت اطلاعات...');
+                var fields = {};
+                new FormData(registerForm).forEach(function (value, key) { fields[key] = value; });
+                post('wtlw_register', fields).then(function (payload) {
+                    if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('entryFailed', 'ثبت اطلاعات انجام نشد.')); }
+                    var session = { participant_id: payload.data.participant_id, participant_token: payload.data.participant_token };
+                    saveSession(session);
+                    formMessage.textContent = payload.data.message || '';
+                    activateGame(app, session, payload.data);
+                }).catch(function (error) {
+                    formMessage.textContent = error.message;
+                    formMessage.classList.add('is-error');
+                    button.disabled = false;
+                });
             });
-        });
+        }
 
-        spinButton.addEventListener('click', function () {
-            var session = app.__wtlwSession;
-            if (!session || spinButton.disabled) { return; }
-            spinButton.disabled = true;
-            message.classList.remove('is-error');
-            message.textContent = label('spinning', 'گردونه در حال چرخش است...');
-            post('wtlw_spin', { participant_id: session.participant_id, participant_token: session.participant_token, request_id: requestId() }).then(function (payload) {
-                if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('spinFailed', 'چرخش گردونه انجام نشد.')); }
-                var result = payload.data;
-                rotation = nextRotation(rotation, result.target_angle !== undefined ? result.target_angle : result.angle);
-                wheel.style.transform = 'rotate(' + rotation + 'deg)';
-                count.textContent = result.attempts_remaining;
-
-                var onWheelEnd = function (event) {
-                    if (event.target !== wheel || 'transform' !== event.propertyName) { return; }
-                    wheel.removeEventListener('transitionend', onWheelEnd);
-                    wheel.style.setProperty('--wtlw-wheel-counter', (-rotation) + 'deg');
-                    showModal(app, result);
-                    message.textContent = '';
-                    spinButton.disabled = Number(result.attempts_remaining) < 1;
-                };
-                wheel.addEventListener('transitionend', onWheelEnd);
-            }).catch(function (error) {
-                if (String(error.message).indexOf('نشست') !== -1) {
-                    clearSession();
-                    app.__wtlwSession = null;
-                    game.classList.add('wtlw-is-hidden');
-                    registerForm.classList.remove('wtlw-is-hidden');
+        if (spinButton && wheel) {
+            spinButton.addEventListener('click', function () {
+                var session = app.__wtlwSession;
+                if (!session || spinButton.disabled) { return; }
+                spinButton.disabled = true;
+                message.classList.remove('is-error');
+                message.textContent = label('spinning', 'گردونه در حال چرخش است...');
+                var fields = { request_id: requestId() };
+                if (session.member) {
+                    fields.member = '1';
+                } else {
+                    fields.participant_id = session.participant_id;
+                    fields.participant_token = session.participant_token;
                 }
-                message.textContent = error.message;
-                message.classList.add('is-error');
-                spinButton.disabled = false;
+                post('wtlw_spin', fields).then(function (payload) {
+                    if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('spinFailed', 'چرخش گردونه انجام نشد.')); }
+                    var result = payload.data;
+                    rotation = nextRotation(rotation, result.target_angle !== undefined ? result.target_angle : result.angle);
+                    wheel.style.transform = 'rotate(' + rotation + 'deg)';
+                    setAttempts(app, result.attempts_remaining);
+
+                    var onWheelEnd = function (event) {
+                        if (event.target !== wheel || 'transform' !== event.propertyName) { return; }
+                        wheel.removeEventListener('transitionend', onWheelEnd);
+                        showModal(app, result);
+                        message.textContent = '';
+                    };
+                    wheel.addEventListener('transitionend', onWheelEnd);
+                }).catch(function (error) {
+                    if (!isMember && String(error.message).indexOf('نشست') !== -1) {
+                        clearSession();
+                        app.__wtlwSession = null;
+                        if (game) { game.classList.add('wtlw-is-hidden'); }
+                        if (registerForm) { registerForm.classList.remove('wtlw-is-hidden'); }
+                        app.removeAttribute('data-has-attempts');
+                    }
+                    message.textContent = error.message;
+                    message.classList.add('is-error');
+                    spinButton.disabled = false;
+                });
             });
-        });
+        }
 
         app.querySelectorAll('.wtlw-modal-close, .wtlw-modal-ok, .wtlw-modal-backdrop').forEach(function (element) {
             element.addEventListener('click', function () { closeModal(app); });
         });
 
+        if (isMember) {
+            app.__wtlwReady = Promise.resolve();
+            return;
+        }
+
         var saved = loadSession();
         if (saved && saved.participant_id && saved.participant_token) {
-            post('wtlw_guest_status', saved).then(function (payload) {
+            app.__wtlwReady = post('wtlw_guest_status', saved).then(function (payload) {
                 if (!payload.success) { throw new Error('invalid'); }
                 activateGame(app, saved, payload.data);
-            }).catch(function () { clearSession(); });
+            }).catch(function () {
+                clearSession();
+                app.__wtlwSession = null;
+                app.removeAttribute('data-has-attempts');
+            });
+        } else {
+            app.__wtlwReady = Promise.resolve();
         }
     }
 
     function openPopup(shell) {
         var popup = shell.querySelector('.wtlw-popup');
-        if (!popup) { return; }
+        var app = shell.querySelector('.wtlw-app');
+        if (!popup || shell.hidden || (app && '0' === app.getAttribute('data-has-attempts'))) { return; }
         popup.classList.add('is-visible');
         popup.setAttribute('aria-hidden', 'false');
         document.documentElement.classList.add('wtlw-popup-open');
@@ -193,13 +236,24 @@
 
     function initPopup(shell) {
         var trigger = shell.querySelector('.wtlw-popup-trigger');
-        if (trigger) { trigger.addEventListener('click', function () { openPopup(shell); }); }
+        var app = shell.querySelector('.wtlw-app');
+        if (trigger) { trigger.disabled = true; }
         shell.querySelectorAll('[data-wtlw-popup-close]').forEach(function (element) {
             element.addEventListener('click', function () { closePopup(shell); });
         });
-        if ('1' === shell.getAttribute('data-auto-open')) {
-            window.setTimeout(function () { openPopup(shell); }, Math.max(0, Number(shell.getAttribute('data-delay') || 800)));
-        }
+        Promise.resolve(app && app.__wtlwReady ? app.__wtlwReady : null).then(function () {
+            if (app && '0' === app.getAttribute('data-has-attempts')) {
+                shell.hidden = true;
+                return;
+            }
+            if (trigger) {
+                trigger.disabled = false;
+                trigger.addEventListener('click', function () { openPopup(shell); });
+            }
+            if ('1' === shell.getAttribute('data-auto-open')) {
+                window.setTimeout(function () { openPopup(shell); }, Math.max(0, Number(shell.getAttribute('data-delay') || 800)));
+            }
+        });
     }
 
     document.addEventListener('keydown', function (event) {
