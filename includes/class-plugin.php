@@ -110,6 +110,7 @@ class WTLW_Plugin {
 		$coupons      = WTLW_Database::get_user_coupons( $user_id );
 
 		wp_enqueue_style( 'wtlw-public', WTLW_URL . 'public/css/style.css', array(), WTLW_VERSION );
+		wp_enqueue_style( 'wtlw-theme', WTLW_URL . 'public/css/theme-overrides.css', array( 'wtlw-public' ), WTLW_VERSION );
 		include WTLW_DIR . 'public/templates/rewards-account.php';
 	}
 

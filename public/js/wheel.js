@@ -2,6 +2,8 @@
     'use strict';
 
     var storageKey = 'wtlw_guest_session_v1';
+    var fullTurn = 360;
+    var spinTurns = 5;
 
     function label(key, fallback) {
         return window.WTLW_DATA && window.WTLW_DATA.labels && window.WTLW_DATA.labels[key] ? window.WTLW_DATA.labels[key] : fallback;
@@ -18,6 +20,18 @@
     function requestId() {
         if (window.crypto && window.crypto.randomUUID) { return window.crypto.randomUUID(); }
         return 'wtlw-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    }
+
+    function normalizeAngle(value) {
+        var normalized = Number(value || 0) % fullTurn;
+        return normalized < 0 ? normalized + fullTurn : normalized;
+    }
+
+    function nextRotation(currentRotation, serverAngle) {
+        var current = normalizeAngle(currentRotation);
+        var target = normalizeAngle(serverAngle);
+        var delta = (target - current + fullTurn) % fullTurn;
+        return currentRotation + (spinTurns * fullTurn) + delta;
     }
 
     function saveSession(session) {
@@ -122,14 +136,19 @@
             post('wtlw_spin', { participant_id: session.participant_id, participant_token: session.participant_token, request_id: requestId() }).then(function (payload) {
                 if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('spinFailed', 'چرخش گردونه انجام نشد.')); }
                 var result = payload.data;
-                rotation += Number(result.angle || 180);
+                rotation = nextRotation(rotation, result.target_angle !== undefined ? result.target_angle : result.angle);
                 wheel.style.transform = 'rotate(' + rotation + 'deg)';
                 count.textContent = result.attempts_remaining;
-                wheel.addEventListener('transitionend', function () {
+
+                var onWheelEnd = function (event) {
+                    if (event.target !== wheel || 'transform' !== event.propertyName) { return; }
+                    wheel.removeEventListener('transitionend', onWheelEnd);
+                    wheel.style.setProperty('--wtlw-wheel-counter', (-rotation) + 'deg');
                     showModal(app, result);
                     message.textContent = '';
                     spinButton.disabled = Number(result.attempts_remaining) < 1;
-                }, { once: true });
+                };
+                wheel.addEventListener('transitionend', onWheelEnd);
             }).catch(function (error) {
                 if (String(error.message).indexOf('نشست') !== -1) {
                     clearSession();

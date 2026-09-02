@@ -3,9 +3,9 @@
  * Plugin Name: گردونه شانس وب‌تنان
  * Plugin URI: https://github.com/webtanan-sketch/webtanan-lucky-wheel
  * Description: افزونه فارسی گردونه شانس با ورود سریع نام و موبایل، پاپ‌آپ، کد تخفیف ووکامرس و رنگ‌بندی قابل تنظیم.
- * Version: 1.3.0
- * Author: Webtanan
- * Author URI: https://webtanan.ir
+ * Version: 1.3.1
+ * Author: وب تنان
+ * Author URI: https://webtanan.com/
  * Text Domain: webtanan-lucky-wheel
  * Domain Path: /languages
  * Requires at least: 5.8
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WTLW_VERSION', '1.3.0' );
+define( 'WTLW_VERSION', '1.3.1' );
 define( 'WTLW_FILE', __FILE__ );
 define( 'WTLW_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WTLW_URL', plugin_dir_url( __FILE__ ) );
