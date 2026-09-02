@@ -98,7 +98,15 @@ class WTLW_Database {
 		if ( false === get_option( 'webtanan_lucky_wheel_colors', false ) && class_exists( 'WTLW_Appearance' ) ) {
 			update_option( 'webtanan_lucky_wheel_colors', WTLW_Appearance::defaults() );
 		}
-		update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.3.0' );
+		if ( false === get_option( 'webtanan_lucky_wheel_last_daily_reset', false ) ) {
+			update_option( 'webtanan_lucky_wheel_last_daily_reset', current_time( 'Y-m-d' ), false );
+		}
+		if ( ! wp_next_scheduled( 'wtlw_daily_reset_attempts' ) ) {
+			$now  = new DateTimeImmutable( 'now', wp_timezone() );
+			$next = $now->modify( 'tomorrow' )->setTime( 0, 5 );
+			wp_schedule_event( $next->getTimestamp(), 'daily', 'wtlw_daily_reset_attempts' );
+		}
+		update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.4.0' );
 		add_rewrite_endpoint( 'my-rewards', EP_ROOT | EP_PAGES );
 		flush_rewrite_rules();
 	}
@@ -139,12 +147,34 @@ class WTLW_Database {
 				update_option( 'webtanan_lucky_wheel_colors', WTLW_Appearance::defaults() );
 			}
 		}
-		if ( version_compare( $version, defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.3.0', '<' ) ) {
-			update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.3.0' );
+		if ( version_compare( $version, '1.4.0', '<' ) && false === get_option( 'webtanan_lucky_wheel_last_daily_reset', false ) ) {
+			update_option( 'webtanan_lucky_wheel_last_daily_reset', current_time( 'Y-m-d' ), false );
+		}
+		if ( version_compare( $version, defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.4.0', '<' ) ) {
+			update_option( 'webtanan_lucky_wheel_data_version', defined( 'WTLW_VERSION' ) ? WTLW_VERSION : '1.4.0' );
 		}
 	}
 
+	public static function maybe_daily_reset_attempts() {
+		global $wpdb;
+		$today = current_time( 'Y-m-d' );
+		$last  = get_option( 'webtanan_lucky_wheel_last_daily_reset', false );
+		if ( false === $last ) {
+			update_option( 'webtanan_lucky_wheel_last_daily_reset', $today, false );
+			return;
+		}
+		if ( $today === $last ) {
+			return;
+		}
+		$default = max( 0, (int) get_option( 'webtanan_lucky_wheel_default_attempts', 1 ) );
+		$participants = self::participants_table();
+		$wpdb->query( $wpdb->prepare( "UPDATE {$participants} SET initial_attempts = %d, remaining_attempts = %d, updated_at = %s WHERE remaining_attempts <= 0", $default, $default, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->usermeta} SET meta_value = %s WHERE meta_key = %s AND CAST(meta_value AS SIGNED) <= 0", (string) $default, 'remaining_attempts' ) );
+		update_option( 'webtanan_lucky_wheel_last_daily_reset', $today, false );
+	}
+
 	public static function deactivate() {
+		wp_clear_scheduled_hook( 'wtlw_daily_reset_attempts' );
 		flush_rewrite_rules();
 	}
 
@@ -158,6 +188,30 @@ class WTLW_Database {
 			array( 'id' => 'reward-500', 'name' => __( '۵۰۰ هزار تومان اعتبار خرید', 'webtanan-lucky-wheel' ), 'type' => 'coupon', 'value' => 500000, 'probability' => 10, 'color' => '#e0c47a', 'icon' => '🛍', 'active' => 1, 'extra_attempts' => 0, 'expiry_days' => 30, 'discount_type' => 'fixed_cart' ),
 			array( 'id' => 'custom', 'name' => __( 'هدیه ویژه', 'webtanan-lucky-wheel' ), 'type' => 'wallet', 'value' => 100000, 'probability' => 5, 'color' => '#3a3121', 'icon' => '★', 'active' => 1, 'extra_attempts' => 0, 'expiry_days' => 0, 'discount_type' => 'fixed_cart' ),
 		);
+	}
+
+	public static function normalize_iran_mobile( $value ) {
+		$value = strtr( (string) $value, array( '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9' ) );
+		$digits = preg_replace( '/\D+/', '', $value );
+		if ( 0 === strpos( $digits, '0098' ) ) {
+			$digits = '0' . substr( $digits, 4 );
+		} elseif ( 0 === strpos( $digits, '98' ) && 12 === strlen( $digits ) ) {
+			$digits = '0' . substr( $digits, 2 );
+		} elseif ( 10 === strlen( $digits ) && '9' === substr( $digits, 0, 1 ) ) {
+			$digits = '0' . $digits;
+		}
+		return preg_match( '/^09\d{9}$/', $digits ) ? $digits : '';
+	}
+
+	public static function get_user_mobile( $user_id ) {
+		$keys = array( 'billing_phone', 'wtlw_phone', 'digits_phone_no', 'mobile', 'phone' );
+		foreach ( $keys as $key ) {
+			$phone = self::normalize_iran_mobile( get_user_meta( (int) $user_id, $key, true ) );
+			if ( $phone ) {
+				return $phone;
+			}
+		}
+		return '';
 	}
 
 	public static function create_participant_session( $name, $phone ) {
