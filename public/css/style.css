@@ -97,6 +97,18 @@
 .wtlw-spin-button { min-width: 220px; }
 .wtlw-trust-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 17px; margin-top: 29px; color: #aac7c2; font-size: 11px; }
 
+body.wtlw-popup-open { overflow: hidden; }
+.wtlw-popup-shell { display: inline-block; direction: rtl; font-family: Tahoma, "Vazirmatn", "IRANSans", "Yekan Bakh", Arial, sans-serif; }
+.wtlw-popup-trigger { min-width: 210px; }
+.wtlw-popup { position: fixed; z-index: 99990; inset: 0; display: grid; place-items: center; padding: 18px; visibility: hidden; opacity: 0; transition: opacity .24s ease, visibility .24s ease; }
+.wtlw-popup.is-visible { visibility: visible; opacity: 1; }
+.wtlw-popup-backdrop { position: absolute; inset: 0; background: rgba(2, 25, 33, .82); backdrop-filter: blur(8px); }
+.wtlw-popup-dialog { position: relative; z-index: 1; width: min(960px, calc(100vw - 28px)); max-height: calc(100vh - 28px); overflow: auto; overscroll-behavior: contain; border: 1px solid rgba(233,196,106,.42); border-radius: 30px; background: #052f3e; box-shadow: 0 32px 90px rgba(0,0,0,.52); transform: translateY(14px) scale(.97); transition: transform .24s ease; scrollbar-width: thin; }
+.wtlw-popup.is-visible .wtlw-popup-dialog { transform: translateY(0) scale(1); }
+.wtlw-popup-dialog .wtlw-app { max-width: none; margin: 0; border: 0; border-radius: 29px; box-shadow: none; }
+.wtlw-popup-close { position: absolute; z-index: 8; top: 12px; left: 14px; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; color: #fff; background: rgba(3,42,54,.76); box-shadow: 0 8px 20px rgba(0,0,0,.18); cursor: pointer; font-size: 28px; line-height: 1; transition: transform .2s, background .2s; }
+.wtlw-popup-close:hover { transform: rotate(6deg) scale(1.04); background: rgba(15,118,110,.9); }
+
 .wtlw-modal { position: fixed; z-index: 99999; inset: 0; display: grid; place-items: center; visibility: hidden; opacity: 0; transition: opacity .25s, visibility .25s; font-family: Tahoma, "Vazirmatn", "IRANSans", "Yekan Bakh", Arial, sans-serif; }
 .wtlw-modal.is-visible { visibility: visible; opacity: 1; }
 .wtlw-modal-backdrop { position: absolute; inset: 0; background: rgba(3, 29, 38, .78); backdrop-filter: blur(7px); }
@@ -150,4 +162,8 @@
     .wtlw-wheel-labels span { transform: rotate(var(--wtlw-label-angle)) translateY(-101px); width: 82px; margin-left: -41px; }
     .wtlw-wheel-labels b { font-size: 8px; }
     .wtlw-trust-row { gap: 9px; font-size: 10px; }
+    .wtlw-popup { padding: 8px; }
+    .wtlw-popup-dialog { width: calc(100vw - 12px); max-height: calc(100vh - 12px); border-radius: 21px; }
+    .wtlw-popup-dialog .wtlw-app { margin: 0; border-radius: 20px; }
+    .wtlw-popup-close { top: 8px; left: 8px; width: 36px; height: 36px; }
 }
