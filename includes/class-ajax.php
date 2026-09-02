@@ -1,12 +1,11 @@
 <?php
-/** AJAX endpoints with nonce, authentication and abuse protection. */
+/** AJAX endpoints with nonce and abuse protection. */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 class WTLW_Ajax {
-	/** @var WTLW_Wheel_Engine */
 	private $engine;
 
 	public function __construct( WTLW_Wheel_Engine $engine ) {
@@ -15,125 +14,97 @@ class WTLW_Ajax {
 		add_action( 'wp_ajax_nopriv_wtlw_spin', array( $this, 'spin' ) );
 		add_action( 'wp_ajax_wtlw_register', array( $this, 'register' ) );
 		add_action( 'wp_ajax_nopriv_wtlw_register', array( $this, 'register' ) );
+		add_action( 'wp_ajax_wtlw_guest_status', array( $this, 'guest_status' ) );
+		add_action( 'wp_ajax_nopriv_wtlw_guest_status', array( $this, 'guest_status' ) );
 	}
 
-	/** Perform a server-side spin. */
 	public function spin() {
 		check_ajax_referer( 'wtlw_frontend', 'nonce' );
-		if ( ! is_user_logged_in() ) {
-			wp_send_json_error( array( 'message' => __( 'برای چرخاندن گردونه ابتدا ثبت‌نام یا وارد حساب خود شوید.', 'webtanan-lucky-wheel' ) ), 401 );
-		}
-
 		$ip = $this->request_ip();
 		if ( ! $this->allow_ip( $ip ) ) {
 			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) ), 429 );
 		}
-
-		$request_id = isset( $_POST['request_id'] ) ? sanitize_text_field( wp_unslash( $_POST['request_id'] ) ) : '';
-		$result     = $this->engine->spin( get_current_user_id(), $ip, $request_id );
+		$participant_id    = isset( $_POST['participant_id'] ) ? absint( $_POST['participant_id'] ) : 0;
+		$participant_token = isset( $_POST['participant_token'] ) ? sanitize_text_field( wp_unslash( $_POST['participant_token'] ) ) : '';
+		$request_id        = isset( $_POST['request_id'] ) ? sanitize_text_field( wp_unslash( $_POST['request_id'] ) ) : '';
+		$result = $this->engine->spin_guest( $participant_id, $participant_token, $ip, $request_id );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ), 400 );
 		}
-
 		wp_send_json_success( $result );
 	}
 
-	/** Register a user and initialize the campaign attempts. */
 	public function register() {
 		check_ajax_referer( 'wtlw_frontend', 'nonce' );
-		if ( is_user_logged_in() ) {
-			wp_send_json_success( array( 'message' => __( 'شما از قبل وارد حساب کاربری شده‌اید.', 'webtanan-lucky-wheel' ) ) );
-		}
-
 		$ip = $this->request_ip();
 		if ( ! $this->allow_ip( $ip ) ) {
 			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) ), 429 );
 		}
-
 		$name      = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 		$phone_raw = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
-		$phone     = preg_replace( '/[^0-9+]/', '', $this->normalize_digits( $phone_raw ) );
-		$email     = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
-		$password  = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
-
-		if ( ! $name || ! $phone || ! is_email( $email ) || strlen( $password ) < 8 ) {
-			wp_send_json_error( array( 'message' => __( 'نام، شماره موبایل، ایمیل معتبر و رمز عبور حداقل ۸ کاراکتری الزامی است.', 'webtanan-lucky-wheel' ) ), 422 );
+		$phone     = $this->normalize_iran_mobile( $phone_raw );
+		if ( '' === trim( $name ) ) {
+			wp_send_json_error( array( 'message' => __( 'نام و نام خانوادگی را وارد کنید.', 'webtanan-lucky-wheel' ) ), 422 );
 		}
-		if ( email_exists( $email ) ) {
-			wp_send_json_error( array( 'message' => __( 'این ایمیل قبلاً ثبت شده است.', 'webtanan-lucky-wheel' ) ), 409 );
+		if ( ! $phone ) {
+			wp_send_json_error( array( 'message' => __( 'شماره موبایل معتبر مانند 09121234567 وارد کنید.', 'webtanan-lucky-wheel' ) ), 422 );
 		}
-		if ( $this->phone_exists( $phone ) ) {
-			wp_send_json_error( array( 'message' => __( 'این شماره موبایل قبلاً ثبت شده است.', 'webtanan-lucky-wheel' ) ), 409 );
+		$session = WTLW_Database::create_participant_session( $name, $phone );
+		if ( is_wp_error( $session ) ) {
+			wp_send_json_error( array( 'message' => $session->get_error_message() ), 400 );
 		}
-
-		$username = sanitize_user( current( explode( '@', $email ) ), true );
-		if ( ! $username ) {
-			$username = 'wtlw_' . wp_generate_password( 8, false, false );
-		}
-		$base_username = $username;
-		$suffix        = 1;
-		while ( username_exists( $username ) ) {
-			$username = $base_username . $suffix;
-			++$suffix;
-		}
-
-		$user_id = wp_create_user( $username, $password, $email );
-		if ( is_wp_error( $user_id ) ) {
-			wp_send_json_error( array( 'message' => $user_id->get_error_message() ), 400 );
-		}
-		wp_update_user( array( 'ID' => $user_id, 'display_name' => $name, 'first_name' => $name ) );
-		update_user_meta( $user_id, 'wtlw_phone', $phone );
-		$attempts = $this->engine->ensure_user_attempts( $user_id );
-		wp_set_auth_cookie( $user_id, true );
-
 		wp_send_json_success(
 			array(
-				'user_id'            => (int) $user_id,
-				'attempts_remaining' => $attempts['remaining_attempts'],
-				'message'            => __( 'ثبت‌نام با موفقیت انجام شد. شانس شما آماده است.', 'webtanan-lucky-wheel' ),
+				'participant_id' => $session['id'],
+				'participant_token' => $session['token'],
+				'name' => $session['name'],
+				'phone' => $session['phone'],
+				'attempts_remaining' => $session['remaining_attempts'],
+				'credit_balance' => $session['credit_balance'],
+				'message' => __( 'اطلاعات ثبت شد؛ شانس شما آماده است.', 'webtanan-lucky-wheel' ),
 			)
 		);
 	}
 
-	/** Normalize Persian and Arabic numerals before phone validation. */
+	public function guest_status() {
+		check_ajax_referer( 'wtlw_frontend', 'nonce' );
+		$participant_id    = isset( $_POST['participant_id'] ) ? absint( $_POST['participant_id'] ) : 0;
+		$participant_token = isset( $_POST['participant_token'] ) ? sanitize_text_field( wp_unslash( $_POST['participant_token'] ) ) : '';
+		$row = WTLW_Database::authenticate_participant( $participant_id, $participant_token );
+		if ( ! $row ) {
+			wp_send_json_error( array( 'message' => __( 'نشست قرعه‌کشی معتبر نیست. نام و شماره موبایل را دوباره وارد کنید.', 'webtanan-lucky-wheel' ) ), 401 );
+		}
+		wp_send_json_success( array( 'participant_id' => (int) $row->id, 'name' => $row->name, 'phone' => $row->phone, 'attempts_remaining' => (int) $row->remaining_attempts, 'credit_balance' => (float) $row->credit_balance ) );
+	}
+
 	private function normalize_digits( $value ) {
-		return strtr(
-			(string) $value,
-			array(
-				'۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
-				'۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
-				'٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
-				'٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
-			)
-		);
+		return strtr( (string) $value, array( '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9' ) );
 	}
 
-	/** Get a proxy-safe client IP. */
+	private function normalize_iran_mobile( $value ) {
+		$digits = preg_replace( '/\D+/', '', $this->normalize_digits( $value ) );
+		if ( 0 === strpos( $digits, '0098' ) ) {
+			$digits = '0' . substr( $digits, 4 );
+		} elseif ( 0 === strpos( $digits, '98' ) && 12 === strlen( $digits ) ) {
+			$digits = '0' . substr( $digits, 2 );
+		} elseif ( 10 === strlen( $digits ) && '9' === substr( $digits, 0, 1 ) ) {
+			$digits = '0' . $digits;
+		}
+		return preg_match( '/^09\d{9}$/', $digits ) ? $digits : '';
+	}
+
 	private function request_ip() {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '0.0.0.0';
 		return filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '0.0.0.0';
 	}
 
-	/** Sliding one-minute request limit. */
 	private function allow_ip( $ip ) {
-		$key   = 'wtlw_ip_' . md5( $ip );
+		$key = 'wtlw_ip_' . md5( $ip );
 		$count = (int) get_transient( $key );
 		if ( $count >= 20 ) {
 			return false;
 		}
 		set_transient( $key, $count + 1, MINUTE_IN_SECONDS );
 		return true;
-	}
-
-	/** Check normalized phone against registered users. */
-	private function phone_exists( $phone ) {
-		global $wpdb;
-		return (bool) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT umeta_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1",
-				'wtlw_phone',
-				$phone
-			)
-		);
 	}
 }
