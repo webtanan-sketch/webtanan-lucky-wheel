@@ -1,51 +1,78 @@
-# Webtanan Lucky Wheel
+# گردونه شانس وب‌تنان
 
-Webtanan Lucky Wheel is a production-oriented WordPress campaign plugin for building registration-gated “spin to win” experiences. Reward selection is always performed on the server with weighted randomness; the browser only animates the result returned by the server.
+**Webtanan Lucky Wheel** یک افزونه وردپرس برای اجرای کمپین‌های «گردونه شانس»، ثبت‌نام کاربر، صدور کد تخفیف ووکامرس، اعتبار کیف پول و باشگاه مشتریان است. انتخاب نتیجه گردونه روی سرور و با احتمال وزنی انجام می‌شود و مرورگر فقط نتیجه تأییدشده سرور را نمایش و انیمیشن می‌کند.
 
-## Features
+## ویژگی‌ها
 
-- Seven configurable wheel sections with label, icon, color, probability and active state.
-- Registration gate with name, mobile, email and password; users are logged in automatically and receive an initial attempt.
-- WooCommerce one-use coupons restricted to the recipient, with fixed or percentage discount and expiry.
-- Internal wallet fallback (`wp_webtanan_wallet`) when WooCommerce is unavailable.
-- Extra-attempt rewards (`+1` and `+2`) and configurable custom rewards.
-- Atomic-style short-lived locks, idempotency keys, WordPress nonces, capability checks and IP rate limiting.
-- WooCommerce My Account endpoint: `/my-account/my-rewards/`.
-- Dashboard metrics and a users/rewards history table.
-- Responsive, mobile-first premium purple/gold UI with wheel animation, result modal and confetti.
+- رابط کاربری کاملاً فارسی و راست‌چین (RTL).
+- ظاهر ایرانیزه با ترکیب رنگ فیروزه‌ای، لاجوردی و طلایی و نقش هندسی ظریف.
+- هفت بخش قابل تنظیم برای گردونه با عنوان، آیکن، رنگ، احتمال و وضعیت فعال/غیرفعال.
+- فرم ثبت‌نام شامل نام، موبایل، ایمیل و رمز عبور؛ ورود خودکار کاربر و اختصاص شانس اولیه.
+- ساخت کد تخفیف یک‌بارمصرف ووکامرس برای کاربر برنده، با تخفیف مبلغ ثابت یا درصدی و تاریخ انقضا.
+- کیف پول داخلی (`wp_webtanan_wallet`) در صورت نبود ووکامرس.
+- جایزه شانس اضافه (`+1` و `+2`) و جایزه سفارشی.
+- کنترل هم‌زمانی، کلید درخواست یکتا، nonce وردپرس، بررسی دسترسی و محدودسازی درخواست بر اساس IP.
+- بخش «جوایز من» در حساب کاربری ووکامرس: `/my-account/my-rewards/`.
+- داشبورد مدیریتی، آمار کمپین و تاریخچه کاربران و جوایز.
+- طراحی واکنش‌گرا برای موبایل و دسکتاپ، انیمیشن گردونه، پنجره نتیجه و افکت جشن.
 
-## Installation
+## نصب
 
-1. Copy `webtanan-lucky-wheel` to `wp-content/plugins/` (or upload a zip from the WordPress Plugins screen).
-2. Activate **Webtanan Lucky Wheel**. Activation creates the wheel log and wallet tables and seeds the default campaign.
-3. Open **Lucky Wheel → Wheel Settings** to configure the campaign.
-4. Add `[webtanan_lucky_wheel]` to any page, landing page or template.
+1. پوشه `webtanan-lucky-wheel` را داخل `wp-content/plugins/` قرار دهید یا فایل ZIP افزونه را از بخش افزونه‌های وردپرس بارگذاری کنید.
+2. افزونه **گردونه شانس وب‌تنان** را فعال کنید. هنگام فعال‌سازی، جداول گزارش گردونه و کیف پول ساخته می‌شوند و اطلاعات اولیه فارسی ثبت می‌شود.
+3. از منوی **گردونه شانس ← تنظیمات گردونه** کمپین را تنظیم کنید.
+4. شورت‌کد زیر را در هر برگه یا صفحه فرود قرار دهید:
 
-WooCommerce is optional. When active, coupon rewards create a single-use WooCommerce coupon and attach it to the winning user. Without WooCommerce, coupon-type rewards are automatically credited to the internal wallet.
+```text
+[webtanan_lucky_wheel]
+```
 
-## Data and security
+ووکامرس اختیاری است. در صورت فعال بودن ووکامرس، جایزه‌های نوع کد تخفیف به‌صورت کوپن یک‌بارمصرف ساخته و به کاربر برنده محدود می‌شوند. اگر ووکامرس فعال نباشد، مبلغ جایزه به کیف پول داخلی کاربر افزوده می‌شود.
 
-The plugin stores wheel events in `wp_webtanan_wheel_logs` and wallet transactions in `wp_webtanan_wallet` (the prefix follows the site configuration). Spin results, probability and attempt checks happen in PHP. AJAX requests require a nonce and authentication; duplicate request IDs, rapid concurrent spins and excessive IP traffic are rejected.
+## اطلاعات اولیه فارسی
 
-## Screenshots
+نسخه 1.1.0 اطلاعات پیش‌فرض افزونه را فارسی می‌کند؛ از جمله:
 
-The repository keeps the plugin UI self-contained so screenshots can be captured directly from the target theme after activation. Recommended captures are the public registration gate, the spinning/result modal, and the Lucky Wheel admin dashboard/settings screens.
+- عنوان پیش‌فرض: «گردونه شانس و جایزه»
+- ۶۰۰ هزار تومان اعتبار خرید
+- ۳۰۰ هزار تومان اعتبار خرید
+- ۵۰۰ هزار تومان اعتبار خرید
+- ۱ و ۲ شانس اضافه
+- هدیه ویژه
+- بخش بدون جایزه
 
-## Development
+برای سایت‌هایی که نسخه قبلی را نصب کرده‌اند، مهاجرت فقط روی متن‌های پیش‌فرض انگلیسی انجام می‌شود و تنظیمات سفارشی مدیر سایت بازنویسی نمی‌شوند.
 
-The code is split into focused OOP services under `includes/`: database, wallet, WooCommerce, rewards, wheel engine, AJAX, admin and shortcode. Public and admin assets live in their respective folders. Keep changes WordPress Coding Standards compatible and run PHP syntax checks before submitting a pull request.
+## داده و امنیت
 
-## Roadmap
+رویدادهای گردونه در جدول `wp_webtanan_wheel_logs` و تراکنش‌های کیف پول در `wp_webtanan_wallet` ذخیره می‌شوند. پیشوند جدول‌ها مطابق تنظیمات وردپرس سایت تغییر می‌کند. نتیجه گردونه، احتمال‌ها و تعداد شانس‌ها در PHP بررسی می‌شوند. درخواست‌های AJAX نیازمند nonce هستند و درخواست تکراری، چرخش هم‌زمان سریع و ترافیک بیش از حد از یک IP رد می‌شود.
 
-- Optional OTP login and phone verification.
-- SMS/email reward notifications.
-- CRM and analytics integrations, sales reports and A/B testing.
-- Scheduled campaigns and advanced anti-fraud controls.
+## ظاهر و شخصی‌سازی
 
-## Contributing
+رابط جدید برای زبان فارسی و جهت RTL طراحی شده است. تم پیش‌فرض از رنگ‌های الهام‌گرفته از معماری و هنر ایرانی استفاده می‌کند:
 
-Open an issue describing the problem or feature, then submit a focused pull request with reproduction steps and tests. Do not include production credentials or `wp-config.php`.
+- فیروزه‌ای
+- لاجوردی
+- طلایی/زعفرانی
+- زمینه‌های روشن عاجی
 
-## License
+همه استایل‌ها داخل افزونه قرار دارند و برای نمایش اصلی به فونت یا سرویس خارجی وابسته نیستند. در صورت وجود فونت‌هایی مانند Vazirmatn، IRANSans یا Yekan Bakh روی سایت، افزونه از آن‌ها استفاده می‌کند و در غیر این صورت Tahoma به‌عنوان فونت سازگار فارسی به کار می‌رود.
 
-MIT. See [LICENSE](LICENSE).
+## توسعه
+
+کد افزونه به سرویس‌های جداگانه در پوشه `includes/` تقسیم شده است: دیتابیس، کیف پول، ووکامرس، جوایز، موتور گردونه، AJAX، مدیریت و شورت‌کد. فایل‌های ظاهری بخش عمومی و مدیریت نیز در پوشه‌های `public/` و `admin/` قرار دارند.
+
+هنگام توسعه، سازگاری با استانداردهای کدنویسی وردپرس و بررسی Syntax فایل‌های PHP توصیه می‌شود.
+
+## برنامه توسعه
+
+- ورود با رمز یک‌بارمصرف و تأیید شماره موبایل.
+- ارسال پیامک یا ایمیل جایزه.
+- اتصال به CRM و سیستم‌های تحلیل فروش.
+- گزارش‌های پیشرفته کمپین.
+- زمان‌بندی شروع و پایان کمپین.
+- کنترل‌های ضدتقلب پیشرفته‌تر.
+
+## مجوز
+
+MIT — جزئیات در فایل [LICENSE](LICENSE) موجود است.
