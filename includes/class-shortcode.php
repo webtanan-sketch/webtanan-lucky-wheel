@@ -16,6 +16,25 @@ class WTLW_Shortcode {
 
 	/** Render a complete registration gate or game board. */
 	public function render( $atts = array() ) {
+		$atts = shortcode_atts(
+			array(
+				'popup'       => '0',
+				'button_text' => __( 'باز کردن گردونه شانس', 'webtanan-lucky-wheel' ),
+				'auto_open'   => '0',
+				'delay'       => '800',
+			),
+			$atts,
+			'webtanan_lucky_wheel'
+		);
+
+		$is_popup = in_array( strtolower( (string) $atts['popup'] ), array( '1', 'true', 'yes', 'on' ), true );
+		$auto_open = in_array( strtolower( (string) $atts['auto_open'] ), array( '1', 'true', 'yes', 'on' ), true );
+		$delay = max( 0, min( 60000, (int) $atts['delay'] ) );
+		$button_text = sanitize_text_field( $atts['button_text'] );
+		if ( '' === $button_text ) {
+			$button_text = __( 'باز کردن گردونه شانس', 'webtanan-lucky-wheel' );
+		}
+
 		if ( ! get_option( 'webtanan_lucky_wheel_active', 1 ) ) {
 			return '<div class="wtlw-notice" dir="rtl">' . esc_html__( 'گردونه شانس موقتاً غیرفعال است.', 'webtanan-lucky-wheel' ) . '</div>';
 		}
@@ -60,7 +79,18 @@ class WTLW_Shortcode {
 			$gradient .= esc_attr( $color ) . ' ' . ( $index * $angle ) . 'deg ' . ( ( $index + 1 ) * $angle ) . 'deg' . ( $index < count( $colors ) - 1 ? ', ' : '' );
 		}
 		$gradient .= ')';
+
 		ob_start();
+		if ( $is_popup ) :
+			?>
+			<div class="wtlw-popup-shell" dir="rtl" data-auto-open="<?php echo esc_attr( $auto_open ? '1' : '0' ); ?>" data-delay="<?php echo esc_attr( $delay ); ?>">
+				<button type="button" class="wtlw-button wtlw-popup-trigger"><span>✦</span><?php echo esc_html( $button_text ); ?></button>
+				<div class="wtlw-popup" aria-hidden="true">
+					<div class="wtlw-popup-backdrop" data-wtlw-popup-close></div>
+					<div class="wtlw-popup-dialog" role="dialog" aria-modal="true" aria-label="<?php echo esc_attr( $title ); ?>">
+						<button type="button" class="wtlw-popup-close" data-wtlw-popup-close aria-label="<?php echo esc_attr__( 'بستن گردونه', 'webtanan-lucky-wheel' ); ?>">×</button>
+			<?php
+		endif;
 		?>
 		<div class="wtlw-app" dir="rtl" data-sections="<?php echo esc_attr( wp_json_encode( $sections ) ); ?>">
 			<div class="wtlw-hero">
@@ -99,6 +129,11 @@ class WTLW_Shortcode {
 			<div class="wtlw-trust-row"><span>🔒 <?php echo esc_html__( 'اختصاص امن جایزه', 'webtanan-lucky-wheel' ); ?></span><span>✧ <?php echo esc_html__( 'انتخاب تصادفی و منصفانه', 'webtanan-lucky-wheel' ); ?></span><span>⚡ <?php echo esc_html__( 'اعلام نتیجه فوری', 'webtanan-lucky-wheel' ); ?></span></div>
 			<div class="wtlw-modal" aria-hidden="true"><div class="wtlw-modal-backdrop"></div><div class="wtlw-modal-card" role="dialog" aria-modal="true" aria-labelledby="wtlw-result-title"><button type="button" class="wtlw-modal-close" aria-label="<?php echo esc_attr__( 'بستن', 'webtanan-lucky-wheel' ); ?>">×</button><div class="wtlw-confetti" aria-hidden="true"></div><span class="wtlw-result-sparkle">✦</span><h3 id="wtlw-result-title"><?php echo esc_html__( 'تبریک!', 'webtanan-lucky-wheel' ); ?></h3><p class="wtlw-result-name"></p><div class="wtlw-result-code"></div><button type="button" class="wtlw-button wtlw-modal-ok"><?php echo esc_html__( 'عالیه', 'webtanan-lucky-wheel' ); ?></button></div></div>
 		</div>
+		<?php if ( $is_popup ) : ?>
+					</div>
+				</div>
+			</div>
+		<?php endif; ?>
 		<?php
 		return ob_get_clean();
 	}
