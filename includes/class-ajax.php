@@ -50,10 +50,11 @@ class WTLW_Ajax {
 			wp_send_json_error( array( 'message' => __( 'تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید.', 'webtanan-lucky-wheel' ) ), 429 );
 		}
 
-		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-		$phone    = isset( $_POST['phone'] ) ? preg_replace( '/[^0-9+]/', '', wp_unslash( $_POST['phone'] ) ) : '';
-		$email    = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
-		$password = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
+		$name      = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		$phone_raw = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+		$phone     = preg_replace( '/[^0-9+]/', '', $this->normalize_digits( $phone_raw ) );
+		$email     = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$password  = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
 
 		if ( ! $name || ! $phone || ! is_email( $email ) || strlen( $password ) < 8 ) {
 			wp_send_json_error( array( 'message' => __( 'نام، شماره موبایل، ایمیل معتبر و رمز عبور حداقل ۸ کاراکتری الزامی است.', 'webtanan-lucky-wheel' ) ), 422 );
@@ -90,6 +91,19 @@ class WTLW_Ajax {
 				'user_id'            => (int) $user_id,
 				'attempts_remaining' => $attempts['remaining_attempts'],
 				'message'            => __( 'ثبت‌نام با موفقیت انجام شد. شانس شما آماده است.', 'webtanan-lucky-wheel' ),
+			)
+		);
+	}
+
+	/** Normalize Persian and Arabic numerals before phone validation. */
+	private function normalize_digits( $value ) {
+		return strtr(
+			(string) $value,
+			array(
+				'۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+				'۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+				'٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+				'٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
 			)
 		);
 	}
