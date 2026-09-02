@@ -2,8 +2,8 @@
 /**
  * Plugin Name: گردونه شانس وب‌تنان
  * Plugin URI: https://github.com/webtanan-sketch/webtanan-lucky-wheel
- * Description: افزونه فارسی و امن گردونه شانس برای کمپین‌های ثبت‌نام، کد تخفیف ووکامرس، اعتبار کیف پول و باشگاه مشتریان.
- * Version: 1.2.0
+ * Description: افزونه فارسی گردونه شانس با ورود سریع نام و موبایل، پاپ‌آپ، کد تخفیف ووکامرس و رنگ‌بندی قابل تنظیم.
+ * Version: 1.3.0
  * Author: Webtanan
  * Author URI: https://webtanan.ir
  * Text Domain: webtanan-lucky-wheel
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WTLW_VERSION', '1.2.0' );
+define( 'WTLW_VERSION', '1.3.0' );
 define( 'WTLW_FILE', __FILE__ );
 define( 'WTLW_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WTLW_URL', plugin_dir_url( __FILE__ ) );
@@ -29,6 +29,8 @@ require_once WTLW_DIR . 'includes/class-rewards.php';
 require_once WTLW_DIR . 'includes/class-wheel-engine.php';
 require_once WTLW_DIR . 'includes/class-ajax.php';
 require_once WTLW_DIR . 'includes/class-admin.php';
+require_once WTLW_DIR . 'includes/class-appearance.php';
+require_once WTLW_DIR . 'includes/class-guest-admin.php';
 require_once WTLW_DIR . 'includes/class-shortcode.php';
 require_once WTLW_DIR . 'includes/class-plugin.php';
 
