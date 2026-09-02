@@ -114,7 +114,10 @@ class WTLW_Wheel_Engine {
 
 			$index = array_search( $selected['id'], array_column( $sections, 'id' ), true );
 			$segment_angle = 360 / count( $sections );
-			$angle = ( 360 - ( ( (int) $index * $segment_angle ) + ( $segment_angle / 2 ) ) ) + ( 360 * 5 );
+			$segment_center = ( (int) $index * $segment_angle ) + ( $segment_angle / 2 );
+			$target_angle = fmod( 360 - $segment_center + 360, 360 );
+			$legacy_angle = $target_angle + ( 360 * 5 );
+
 			return array(
 				'log_id' => $log_id,
 				'reward_id' => $selected['id'],
@@ -122,7 +125,8 @@ class WTLW_Wheel_Engine {
 				'reward_type' => $selected['type'],
 				'reward_value' => $selected['value'],
 				'coupon_code' => $reward['coupon_code'],
-				'angle' => round( $angle, 2 ),
+				'angle' => round( $legacy_angle, 4 ),
+				'target_angle' => round( $target_angle, 4 ),
 				'attempts_remaining' => $after,
 				'credit_balance' => $participant_after ? (float) $participant_after->credit_balance : 0,
 			);
