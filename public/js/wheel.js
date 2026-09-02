@@ -1,6 +1,10 @@
 (function () {
     'use strict';
 
+    function label(key, fallback) {
+        return window.WTLW_DATA && window.WTLW_DATA.labels && window.WTLW_DATA.labels[key] ? window.WTLW_DATA.labels[key] : fallback;
+    }
+
     function post(action, fields) {
         var body = new FormData();
         body.append('action', action);
@@ -23,13 +27,13 @@
         var type = result.reward_type || '';
         name.textContent = result.reward_name || '';
         if (result.coupon_code) {
-            code.innerHTML = '<span>Discount code</span><code>' + result.coupon_code + '</code>';
+            code.innerHTML = '<span>' + label('discountCode', 'کد تخفیف شما') + '</span><code dir="ltr">' + result.coupon_code + '</code>';
         } else if ('nothing' === type) {
-            code.innerHTML = '<span>No luck this time. You can try again.</span>';
+            code.innerHTML = '<span>' + label('noLuck', 'این بار برنده نشدید.') + '</span>';
         } else if ('extra_attempts' === type) {
-            code.innerHTML = '<span>Extra chances were added to your account.</span>';
+            code.innerHTML = '<span>' + label('extraAdded', 'شانس اضافه به حساب شما افزوده شد.') + '</span>';
         } else {
-            code.innerHTML = '<span>Credit was added to your wallet.</span>';
+            code.innerHTML = '<span>' + label('walletAdded', 'اعتبار جایزه به کیف پول شما افزوده شد.') + '</span>';
         }
         var confetti = app.querySelector('.wtlw-confetti');
         confetti.innerHTML = '';
@@ -59,11 +63,12 @@
                 var message = registerForm.querySelector('.wtlw-form-message');
                 var button = registerForm.querySelector('button[type="submit"]');
                 button.disabled = true;
-                message.textContent = 'Saving your details...';
+                message.classList.remove('is-error');
+                message.textContent = label('saving', 'در حال ثبت اطلاعات...');
                 var fields = {};
                 new FormData(registerForm).forEach(function (value, key) { fields[key] = value; });
                 post('wtlw_register', fields).then(function (payload) {
-                    if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : 'Registration failed'); }
+                    if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('registrationFailed', 'ثبت‌نام انجام نشد.')); }
                     message.textContent = payload.data.message;
                     window.setTimeout(function () { window.location.reload(); }, 450);
                 }).catch(function (error) {
@@ -85,9 +90,10 @@
         button.addEventListener('click', function () {
             if (button.disabled) { return; }
             button.disabled = true;
-            message.textContent = window.WTLW_DATA.labels.spinning;
+            message.classList.remove('is-error');
+            message.textContent = label('spinning', 'گردونه در حال چرخش است...');
             post('wtlw_spin', { request_id: requestId() }).then(function (payload) {
-                if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : 'Spin failed'); }
+                if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('spinFailed', 'چرخش گردونه انجام نشد.')); }
                 var result = payload.data;
                 rotation += Number(result.angle || 180);
                 wheel.style.transform = 'rotate(' + rotation + 'deg)';
