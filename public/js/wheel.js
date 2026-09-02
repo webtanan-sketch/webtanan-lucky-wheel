@@ -20,6 +20,10 @@
         return 'wtlw-' + Date.now() + '-' + Math.random().toString(36).slice(2);
     }
 
+    function reopenKey() {
+        return 'wtlw-popup-reopen:' + window.location.pathname;
+    }
+
     function showModal(app, result) {
         var modal = app.querySelector('.wtlw-modal');
         var name = app.querySelector('.wtlw-result-name');
@@ -51,8 +55,69 @@
 
     function closeModal(app) {
         var modal = app.querySelector('.wtlw-modal');
+        if (!modal) { return; }
         modal.classList.remove('is-visible');
         modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function initPopup(shell, index) {
+        var popup = shell.querySelector('.wtlw-popup');
+        var trigger = shell.querySelector('.wtlw-popup-trigger');
+        var closeElements = shell.querySelectorAll('[data-wtlw-popup-close]');
+        var closeButton = shell.querySelector('.wtlw-popup-close');
+        var app = shell.querySelector('.wtlw-app');
+        var wasOpened = false;
+
+        if (!popup || !trigger) { return; }
+
+        function openPopup() {
+            popup.classList.add('is-visible');
+            popup.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('wtlw-popup-open');
+            wasOpened = true;
+            window.setTimeout(function () {
+                if (closeButton) { closeButton.focus(); }
+            }, 40);
+        }
+
+        function closePopup() {
+            closeModal(app);
+            popup.classList.remove('is-visible');
+            popup.setAttribute('aria-hidden', 'true');
+            if (!document.querySelector('.wtlw-popup.is-visible')) {
+                document.body.classList.remove('wtlw-popup-open');
+            }
+            if (wasOpened) { trigger.focus(); }
+        }
+
+        shell._wtlwOpenPopup = openPopup;
+        shell._wtlwClosePopup = closePopup;
+
+        trigger.addEventListener('click', openPopup);
+        closeElements.forEach(function (element) {
+            element.addEventListener('click', closePopup);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if ('Escape' !== event.key || !popup.classList.contains('is-visible')) { return; }
+            var resultModal = app ? app.querySelector('.wtlw-modal.is-visible') : null;
+            if (resultModal) {
+                closeModal(app);
+                return;
+            }
+            closePopup();
+        });
+
+        var shouldReopen = false;
+        try {
+            shouldReopen = 0 === index && '1' === window.sessionStorage.getItem(reopenKey());
+            if (shouldReopen) { window.sessionStorage.removeItem(reopenKey()); }
+        } catch (ignore) {}
+
+        if (shouldReopen || '1' === shell.getAttribute('data-auto-open')) {
+            var delay = Number(shell.getAttribute('data-delay') || 0);
+            window.setTimeout(openPopup, Math.max(0, delay));
+        }
     }
 
     function initApp(app) {
@@ -70,6 +135,9 @@
                 post('wtlw_register', fields).then(function (payload) {
                     if (!payload.success) { throw new Error(payload.data && payload.data.message ? payload.data.message : label('registrationFailed', 'ثبت‌نام انجام نشد.')); }
                     message.textContent = payload.data.message;
+                    if (app.closest('.wtlw-popup-shell')) {
+                        try { window.sessionStorage.setItem(reopenKey(), '1'); } catch (ignore) {}
+                    }
                     window.setTimeout(function () { window.location.reload(); }, 450);
                 }).catch(function (error) {
                     message.textContent = error.message;
@@ -115,6 +183,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.wtlw-popup-shell').forEach(initPopup);
         document.querySelectorAll('.wtlw-app').forEach(initApp);
     });
 }());
